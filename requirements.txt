@@ -1,0 +1,6 @@
+flask
+python-dotenv
+google-generativeai
+opencv-python
+ultralytics
+# tensorflow (optional, caused timeout)
