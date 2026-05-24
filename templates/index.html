@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eye-Speak AI | Assistive Communication</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <!-- Modern Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div id="audioUnlock"
+        style="position: fixed; inset: 0; background: rgba(15, 17, 23, 0.85); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; backdrop-filter: blur(8px); cursor: pointer; transition: opacity 0.4s ease;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary, #3b82f6)"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="margin-bottom: 24px; animation: pulse 2s infinite;">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <h2
+            style="font-family: var(--font-main); font-weight: 600; font-size: 2rem; margin: 0 0 12px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+            Enable Speech Audio</h2>
+        <p
+            style="font-family: var(--font-mono); font-size: 1rem; opacity: 0.8; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
+            Click anywhere to start</p>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="brand">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+                Eye-Speak AI
+            </div>
+
+            <div class="status-pills">
+                <div class="status-pill">
+                    <div id="statusDot" class="status-dot"></div>
+                    <span id="statusText">System Ready</span>
+                </div>
+
+                <label class="toggle-control" title="Enable Advanced Context Memory">
+                    <span style="font-size: 0.9em; font-weight: 600; opacity: 0.8;">Smart Context</span>
+                    <input id="use_lstm" type="checkbox" hidden>
+                    <div class="toggle-switch"></div>
+                </label>
+            </div>
+        </header>
+
+        <div class="left-col">
+            <!-- Dynamic Morse Feedback Strip -->
+            <div class="morse-feedback-container">
+                <div class="morse-label">SIGNAL INPUT</div>
+                <div id="morse-visual" class="morse-symbol"></div>
+                <!-- Dots/Dashes appear here -->
+                <div class="morse-label" style="margin-left:auto;">LIVE</div>
+            </div>
+
+            <!-- Suggestion Cards -->
+            <div class="suggestions-grid" id="options">
+                <!-- Fallback / Loading State -->
+                <div class="suggestion-card" style="grid-column: 1/-1; opacity: 0.6;">
+                    <div class="word" style="font-size: 1.5rem; opacity: 0.5;">Waiting for input...</div>
+                </div>
+            </div>
+
+            <!-- Hero Text Area -->
+            <div class="text-display-card">
+                <div id="mainInput" class="output-text" data-placeholder="Start communicating..." spellcheck="false">
+                </div>
+
+                <!-- Floating Action / Status -->
+                <div id="eye-status"
+                    style="position: absolute; bottom: 80px; right: 24px; opacity: 0.6; font-size: 0.9rem; font-weight: 600; transition: all 0.3s ease;">
+                    <span id="eye-status-dot"
+                        style="display:inline-block; width:8px; height:8px; border-radius:50%; background: #ff4444; margin-right: 6px;"></span>
+                    <span id="eye-status-text">EYE NOT DETECTED</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <!-- Live Feed -->
+            <div class="feed-card">
+                <img src="{{ url_for('video_feed') }}" alt="Live Eye Tracking Feed">
+                <div class="feed-overlay">
+                    <div class="feed-badge">LIVE</div>
+                    <div style="color: white; font-size: 0.8rem; opacity: 0.8; font-family: var(--font-mono);">CAM 1
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .compact-guide {
+                    padding: 16px !important;
+                }
+
+                .compact-guide .morse-item {
+                    padding: 4px 6px;
+                    font-size: 0.7rem;
+                    border-radius: 6px;
+                }
+
+                .compact-guide .morse-chart {
+                    gap: 4px;
+                }
+
+                .compact-guide .panel-title {
+                    margin-bottom: 8px;
+                    font-size: 0.9rem;
+                }
+
+                .compact-title {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    margin: 8px 0 4px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+            </style>
+
+            <div class="sidebar-panel compact-guide">
+                <div class="panel-title">Shortcuts</div>
+
+                <div class="compact-title" style="color: var(--accent-primary);">Smart Commands</div>
+                <div class="morse-chart" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="morse-item"><span style="color:var(--accent-primary)">.....</span> ADD SPACE</div>
+                    <div class="morse-item"><span style="color:var(--accent-primary)">......</span> DEL CHAR</div>
+                    <div class="morse-item"><span style="color:var(--danger)">----</span> CLEAR</div>
+                    <div class="morse-item"><span style="color:var(--danger)">..--</span> CLEAR (ALT)</div>
+                    <div class="morse-item"><span style="color:var(--accent-secondary)">.-.-.</span> SPEAK OUT</div>
+                    <div class="morse-item"><span style="color:var(--danger)">...---...</span> SOS</div>
+                    <div class="morse-item"><span style="color:#00ffcc">-.--</span> YES (Y)</div>
+                    <div class="morse-item"><span style="color:#ffcc00">-.</span> NO (N)</div>
+                </div>
+
+                <div class="compact-title" style="color: var(--danger);">Quick Alerts</div>
+                <div class="morse-chart danger-zone" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="morse-item"><span>INH</span> HELP</div>
+                    <div class="morse-item"><span>DR</span> DOC</div>
+                    <div class="morse-item"><span>EM</span> SOS</div>
+                    <div class="morse-item"><span style="color:var(--danger); font-weight: bold;">...---...</span> SOS
+                        ALERT</div>
+                    <div class="morse-item"><span>WP</span> WATER</div>
+                    <div class="morse-item"><span>FD</span> FOOD</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-full-area">
+            <div class="sidebar-panel compact-guide">
+                <div class="panel-title">Morse code, Alphabet & numbers</div>
+                <div class="morse-chart" style="grid-template-columns: repeat(8, 1fr);">
+                    <div class="morse-item"><span>.-</span> A</div>
+                    <div class="morse-item"><span>-...</span> B</div>
+                    <div class="morse-item"><span>-.-.</span> C</div>
+                    <div class="morse-item"><span>-..</span> D</div>
+                    <div class="morse-item"><span>.</span> E</div>
+                    <div class="morse-item"><span>..-.</span> F</div>
+                    <div class="morse-item"><span>--.</span> G</div>
+                    <div class="morse-item"><span>....</span> H</div>
+                    <div class="morse-item"><span>..</span> I</div>
+                    <div class="morse-item"><span>.---</span> J</div>
+                    <div class="morse-item"><span>-.-</span> K</div>
+                    <div class="morse-item"><span>.-..</span> L</div>
+                    <div class="morse-item"><span>--</span> M</div>
+                    <div class="morse-item"><span>-.</span> N</div>
+                    <div class="morse-item"><span>---</span> O</div>
+                    <div class="morse-item"><span>.--.</span> P</div>
+                    <div class="morse-item"><span>--.-</span> Q</div>
+                    <div class="morse-item"><span>.-.</span> R</div>
+                    <div class="morse-item"><span>...</span> S</div>
+                    <div class="morse-item"><span>-</span> T</div>
+                    <div class="morse-item"><span>..-</span> U</div>
+                    <div class="morse-item"><span>...-</span> V</div>
+                    <div class="morse-item"><span>.--</span> W</div>
+                    <div class="morse-item"><span>-..-</span> X</div>
+                    <div class="morse-item"><span>-.--</span> Y</div>
+                    <div class="morse-item"><span>--..</span> Z</div>
+                    <!-- Numbers -->
+                    <div class="morse-item"><span>.----</span> 1</div>
+                    <div class="morse-item"><span>..---</span> 2</div>
+                    <div class="morse-item"><span>...--</span> 3</div>
+                    <div class="morse-item"><span>....-</span> 4</div>
+                    <div class="morse-item"><span>.....</span> 5</div>
+                    <div class="morse-item"><span>-....</span> 6</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Audio Unlock ---
+        const audioUnlock = document.getElementById("audioUnlock");
+        if (audioUnlock) {
+            audioUnlock.addEventListener("click", () => {
+                const u = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(u);
+                audioUnlock.style.opacity = "0";
+                setTimeout(() => audioUnlock.remove(), 400);
+            });
+        }
+
+        // --- State Management ---
+        const state = {
+            suggestions: [],
+            lastSyncedText: "",
+            lastMorse: "",
+            isPredicting: false
+        };
+
+        const els = {
+            input: document.getElementById("mainInput"),
+            options: document.getElementById("options"),
+            statusText: document.getElementById("statusText"),
+            statusDot: document.getElementById("statusDot"),
+            morseVisual: document.getElementById("morse-visual"),
+            eyeStatusText: document.getElementById("eye-status-text"),
+            eyeStatusDot: document.getElementById("eye-status-dot")
+        };
+
+        // --- Core Application Logic ---
+
+        function updateSuggestions(list) {
+            els.options.innerHTML = "";
+            state.suggestions = list;
+
+            if (list.length === 0) {
+                els.options.innerHTML = `
+                    <div class="suggestion-card" style="grid-column: 1/-1; opacity:0.6;">
+                        <span style="font-size:1.2rem; color:var(--text-secondary);">Listening for input...</span>
+                    </div>`;
+                return;
+            }
+
+            const shortcuts = ["4", "6", "7"];
+            const codes = ["....-", "-....", "--..."];
+
+            list.forEach((item, idx) => {
+                if (idx > 2) return; // Limit to 3 (top)
+
+                const card = document.createElement("div");
+                card.className = "suggestion-card";
+                // Animation delay for stagger effect
+                card.style.animationDelay = `${idx * 0.1}s`;
+                card.style.animation = "fadeInUp 0.4s ease backwards";
+
+                card.innerHTML = `
+                    <div class="suggestion-key-hint">BLINK: ${codes[idx]} (${shortcuts[idx]})</div>
+                    <div class="content-wrapper">
+                        <div class="word">${item.word}</div>
+                        <div class="prob">${(item.probability * 100).toFixed(0)}% Match</div>
+                    </div>
+                `;
+                els.options.appendChild(card);
+            });
+        }
+
+        // --- Polling System ---
+
+        setInterval(async () => {
+            try {
+                const res = await fetch("/api/sync_text");
+                const data = await res.json();
+
+                // Eye Detection Status
+                if (data.eye_detected) {
+                    els.eyeStatusText.textContent = "EYE DETECTED";
+                    els.eyeStatusText.style.color = "var(--accent-primary, #00ffcc)";
+                    els.eyeStatusDot.style.background = "var(--accent-primary, #00ffcc)";
+                    els.eyeStatusDot.style.boxShadow = "0 0 10px var(--accent-primary, #00ffcc)";
+                } else {
+                    els.eyeStatusText.textContent = "EYE NOT DETECTED";
+                    els.eyeStatusText.style.color = "#ff4444";
+                    els.eyeStatusDot.style.background = "#ff4444";
+                    els.eyeStatusDot.style.boxShadow = "none";
+                }
+
+                // Text Update
+                if (data.text !== state.lastSyncedText || els.input.innerHTML === "") {
+                    if (data.text === "") {
+                        els.input.innerHTML = `<span style="color: rgba(0,0,0,0.15); font-weight: 300;">${els.input.getAttribute('data-placeholder')}</span><span class="cursor"></span>`;
+                    } else {
+                        els.input.innerHTML = data.text + '<span class="cursor"></span>';
+                    }
+                    state.lastSyncedText = data.text;
+                    els.input.scrollTop = els.input.scrollHeight;
+
+                    // Fetch new predictions on text change
+                    fetchPredictions(data.text);
+                }
+
+                // Read Action Queue (Text to Speech)
+                if (data.action) {
+                    if (data.action.type === 'speak' || data.action.type === 'alert') {
+                        // Cancel any currently playing speech to prioritize this
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(data.action.text);
+                        utterance.rate = 0.9;
+                        window.speechSynthesis.speak(utterance);
+
+                        if (data.action.type === 'alert') {
+                            els.input.style.border = "4px solid var(--danger, #ff4444)";
+                            els.input.style.boxShadow = "0 0 20px rgba(255,68,68,0.5)";
+                            setTimeout(() => {
+                                els.input.style.border = "none";
+                                els.input.style.boxShadow = "none";
+                            }, 5000);
+                        }
+                    } else if (data.action.type === 'clear') {
+                        // Flash green to confirm clear
+                        els.input.style.border = "4px solid #00ffcc";
+                        els.input.style.boxShadow = "0 0 24px rgba(0,255,204,0.5)";
+                        els.input.style.transition = "all 0.4s ease";
+                        els.statusText.textContent = "✓ Text Cleared";
+                        setTimeout(() => {
+                            els.input.style.border = "";
+                            els.input.style.boxShadow = "";
+                            els.statusText.textContent = "System Ready";
+                        }, 1500);
+                        // Also clear suggestions
+                        updateSuggestions([]);
+                    }
+                }
+
+                // Morse Visual Update
+                if (data.morse !== state.lastMorse) {
+                    // Animation trigger
+                    els.morseVisual.style.transform = "scale(1.1)";
+                    setTimeout(() => els.morseVisual.style.transform = "scale(1)", 100);
+
+                    // Extract logic: last part after space usually
+                    const parts = data.morse.trim().split(" ");
+                    const current = data.morse.endsWith(" ") ? "" : parts[parts.length - 1];
+
+                    els.morseVisual.textContent = current || "";
+
+                    if (current) {
+                        els.statusDot.classList.add("blink");
+                        els.statusText.textContent = "Receiving Signal...";
+                    } else {
+                        els.statusDot.classList.remove("blink");
+                        els.statusText.textContent = "System Ready";
+                    }
+
+                    state.lastMorse = data.morse;
+                }
+
+            } catch (e) { console.error(e); }
+        }, 100);
+
+        async function fetchPredictions(text) {
+            const useLstm = document.getElementById("use_lstm").checked;
+
+            const spaceEnd = /\s$/.test(text) || text === "";
+            const trimmed = text.trim();
+            if (!trimmed && !spaceEnd) {
+                // Initial state
+                updateSuggestions([]);
+                return;
+            }
+
+            const endpoint = spaceEnd ? "/api/predict" : "/api/complete";
+            const parts = trimmed.split(/\s+/);
+            const last = parts[parts.length - 1] || "";
+            const prefix = parts.slice(0, -1).join(" ");
+
+            const payload = spaceEnd
+                ? { context: text, top_k: 3, use_lstm: useLstm }
+                : { partial: last, context: prefix, top_k: 3 };
+
+            try {
+                els.statusText.textContent = "Predicting...";
+                const r = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const boxes = await r.json();
+                updateSuggestions(boxes);
+
+                // Restore status
+                setTimeout(() => {
+                    els.statusText.textContent = "System Ready";
+                }, 500);
+
+            } catch (e) {
+                els.statusText.textContent = "AI Offline";
+                els.statusDot.classList.remove("active");
+            }
+        }
+
+        // Initial load
+        fetchPredictions("");
+
+    </script>
+
+    <style>
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</body>
+
+</html>
